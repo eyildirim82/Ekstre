@@ -1,0 +1,125 @@
+{
+    "issues": [
+      {
+        "title": "ADR-001: Idempotency & Overwrite politikasını yaz ve versiyonla",
+        "labels": ["phase:F0", "type:architecture", "priority:high"],
+        "estimate": 1,
+        "body": "## Goal\nIdempotency stratejisi (naturalKey, rowHash, overwrite + audit) yazılı ve onaylı olsun.\n\n## Tasks\n- ADR-001 dokümanını /docs/adr/ altında oluştur\n- naturalKey formülünü ve rowHash kullanımını netleştir\n- Overwrite durumunda TransactionAudit kaydının zorunluluğunu yaz\n\n## DoD\n- ADR-001 merge edildi\n- Tüm katılımcılar tarafından onaylandı\n\n## AC\n- naturalKey = customerCode|docType|YYYY-MM-DD|voucherNo('')\n- rowHash değişirse overwrite + audit\n\n## Dependencies\n- (none)"
+      },
+      {
+        "title": "ADR-002: Snapshot (reported vs calculated) doğrulama stratejisi",
+        "labels": ["phase:F0", "type:architecture", "priority:high"],
+        "estimate": 1,
+        "body": "## Goal\nExcel'in raporladığı değerlerle sistemin hesapladıklarını kıyaslayan snapshot stratejisini dokümante et.\n\n## Tasks\n- Snapshot alanlarını tanımla (reported*, calc*, diff*)\n- Formülleri yaz (Σdebit, Σcredit, max logic)\n- Tolerans eşiği (varsa) belirt\n\n## DoD\n- ADR-002 merge edildi\n\n## AC\n- customerId+fileId UNIQUE snapshot\n- diff alanları hesaplanıyor ve API/UI'da gösterilecek şekilde tanımlandı\n\n## Dependencies\n- ADR-001"
+      },
+      {
+        "title": "Prisma şemasını tanımla (Customer, Transaction, StagingFile, Snapshot, Audit)",
+        "labels": ["phase:F1", "type:backend", "priority:high"],
+        "estimate": 2,
+        "body": "## Goal\nADR-001 ve ADR-002 ile uyumlu Prisma şemasını çıkar ve migrate et.\n\n## Tasks\n- schema.prisma yaz\n- UNIQUE(naturalKey) ekle\n- TransactionAudit ve CustomerBalanceSnapshot modellerini ekle\n- npx prisma migrate dev --name init\n\n## DoD\n- Migration dosyası üretildi ve repo'ya commit edildi\n\n## AC\n- Prisma generate ve migrate sorunsuz\n- Tüm tablolar ve indeksler mevcut\n\n## Dependencies\n- ADR-001, ADR-002"
+      },
+      {
+        "title": "Parser FSM tasarımı (SEEK_CUSTOMER → READ_TX_ROWS)",
+        "labels": ["phase:F2", "type:backend", "priority:high"],
+        "estimate": 1,
+        "body": "## Goal\nExcel formatı için deterministic state machine tasarlanması.\n\n## Tasks\n- Durum diyagramı\n- Totals row detection stratejisi\n- Sayı/tarih parse helper'ları imzaları\n\n## DoD\n- Pseudocode ve diyagram /docs altında\n\n## AC\n- En az 2 excel varyantı üzerinde manuel walkthrough yapıldı\n\n## Dependencies\n- Prisma şeması"
+      },
+      {
+        "title": "Express + Prisma backend skeleton (health, env, error handler)",
+        "labels": ["phase:F3", "type:backend"],
+        "estimate": 1,
+        "body": "## Goal\nÇalışan minimal Express + Prisma iskeleti.\n\n## Tasks\n- /health endpoint\n- dotenv, error handler, logging stub\n- Prisma init\n\n## DoD\n- `npm run dev` ile ayağa kalkıyor, /health 200\n\n## AC\n- .env ile DATABASE_URL okunuyor\n\n## Dependencies\n- Prisma şeması"
+      },
+      {
+        "title": "POST /imports/excel endpoint iskeleti (multer + staging)",
+        "labels": ["phase:F3", "type:backend"],
+        "estimate": 1,
+        "body": "## Goal\nDosya upload edilsin, StagingFile PENDING oluşturulsun.\n\n## Tasks\n- multer entegrasyonu\n- boyut limiti & hata yönetimi\n- StagingFile PENDING kaydı\n\n## DoD\n- Dosya yükleniyor, PENDING kayıt oluşuyor\n\n## AC\n- 413 ve 400 durumları düzgün dönüyor\n\n## Dependencies\n- Express skeleton"
+      },
+      {
+        "title": "Parser implementasyonu (ExcelJS + helpers)",
+        "labels": ["phase:F4", "type:backend"],
+        "estimate": 2,
+        "body": "## Goal\nFSM'e göre Excel verisini parse eden implementasyon.\n\n## Tasks\n- readCustomerHeader\n- isTxHeaderRow, isTotalsRow, parseTxRow\n- turkishNumberToFloat, parseDate\n\n## DoD\n- Örnek excel parse ediliyor, customer/txn sayıları loglanıyor\n\n## AC\n- Totals satırları atlanıyor, hatalı satırlar raporlanabiliyor\n\n## Dependencies\n- Parser FSM tasarımı"
+      },
+      {
+        "title": "Idempotent import akışı (INSERT / SKIP / OVERWRITE + audit)",
+        "labels": ["phase:F4", "type:backend", "priority:high"],
+        "estimate": 2,
+        "body": "## Goal\nnaturalKey ve rowHash'e göre idempotent import.\n\n## Tasks\n- INSERT/UPDATE/SKIP mantığı\n- TransactionAudit kayıtları\n- StagingFile inserted/updated/skipped sayaçları\n\n## DoD\n- Aynı dosya 2. kez: skipped artar\n- Farklı tutar: updated ve audit oluşur\n\n## AC\n- Transaction.lastFileId setleniyor\n\n## Dependencies\n- Parser implementasyonu"
+      },
+      {
+        "title": "Balance snapshot & diff hesaplama",
+        "labels": ["phase:F4", "type:backend"],
+        "estimate": 1,
+        "body": "## Goal\nHer customer-file için snapshot oluşturup diff'leri hesaplamak.\n\n## Tasks\n- Aggregate SUM(debit/credit)\n- calcDebtBalance/calcCreditBalance\n- diff alanları\n\n## DoD\n- Snapshot kayıtları DB'de mevcut, diffler doğru\n\n## AC\n- customerId+fileId UNIQUE\n\n## Dependencies\n- Idempotent import akışı"
+      },
+      {
+        "title": "GET /imports/:id (rapor + snapshotlar)",
+        "labels": ["phase:F4", "type:backend"],
+        "estimate": 0.5,
+        "body": "## Goal\nImport sonucunu (istatistikler + snapshot diff) dönen endpoint.\n\n## Tasks\n- Prisma include ile müşteri & snapshot detayları\n- 404 handling\n\n## DoD\n- UI bu endpoint ile rapor çekebiliyor\n\n## AC\n- Response şeması UI ile uyumlu\n\n## Dependencies\n- Snapshot & diff"
+      },
+      {
+        "title": "Minimal React UI (upload + rapor gösterimi)",
+        "labels": ["phase:F5", "type:frontend"],
+        "estimate": 1,
+        "body": "## Goal\nExcel yükleme ve import sonucunun görüntülenmesi.\n\n## Tasks\n- Vite + React + TS setup\n- Upload formu, rapor kartları, diff tablosu\n- Hatalar & loading state\n\n## DoD\n- Manuel test ile uçtan uca akış çalışıyor\n\n## AC\n- diff != 0 kırmızı renkte\n\n## Dependencies\n- GET /imports/:id"
+      },
+      {
+        "title": "Unit test paketi (helpers, naturalKey, totals detection)",
+        "labels": ["phase:F6", "type:test"],
+        "estimate": 1,
+        "body": "## Goal\nKritik helper fonksiyonları için unit testler.\n\n## Tasks\n- Vitest/Jest setup\n- number/date parse, isTotalsRow, makeNaturalKey testleri\n\n## DoD\n- Tüm testler yeşil, coverage raporu üretildi\n\n## AC\n- Edge-case girişler testli\n\n## Dependencies\n- Helpers implementasyonu"
+      },
+      {
+        "title": "Integration testler (importExcel için)",
+        "labels": ["phase:F6", "type:test"],
+        "estimate": 1,
+        "body": "## Goal\nFixture Excel ile ETL akışının uçtan uca doğrulanması.\n\n## Tasks\n- Test Excel üret\n- INSERT/UPDATE/SKIP, snapshot diff assert\n\n## DoD\n- CI'da integration testler koşuyor\n\n## AC\n- Idempotency yolları testli\n\n## Dependencies\n- importExcel servisi"
+      },
+      {
+        "title": "CI Pipeline (GitHub Actions): lint, typecheck, test, build",
+        "labels": ["phase:F7", "type:devops"],
+        "estimate": 1,
+        "body": "## Goal\nPR ve main push'ta otomatik test & build pipeline.\n\n## Tasks\n- ci.yml\n- Cache ayarları (npm, prisma generate)\n\n## DoD\n- PR açılınca testler otomatik koşuyor\n\n## AC\n- Fail olan PR merge edilemiyor (branch protection)\n\n## Dependencies\n- Testler"
+      },
+      {
+        "title": "Dockerfile(lar) + docker-compose (dev) + docker-compose.prod (pg)",
+        "labels": ["phase:F7", "type:devops"],
+        "estimate": 1,
+        "body": "## Goal\nTek komutta ayağa kalkan dev/prod stack.\n\n## Tasks\n- API ve FE için multi-stage Dockerfile\n- docker-compose.yml (sqlite, dev)\n- docker-compose.prod.yml (postgres)\n\n## DoD\n- docker compose up --build ile 8080 & 3000 çalışıyor\n\n## AC\n- prisma migrate deploy start'ta çalışıyor\n\n## Dependencies\n- CI Pipeline"
+      },
+      {
+        "title": "CD Pipeline (deploy.yml) – Sunucuya otomatik deployment",
+        "labels": ["phase:F7", "type:devops"],
+        "estimate": 1,
+        "body": "## Goal\nmain'e merge sonrası otomatik deploy.\n\n## Tasks\n- GHCR/DockerHub push\n- SSH ile sunucuda compose pull & up -d\n- prisma migrate deploy\n\n## DoD\n- Merge → otomatik deploy çalıştı\n\n## AC\n- Rollback adımı dokümante\n\n## Dependencies\n- Docker compose prod"
+      },
+      {
+        "title": "Postgres’e geçiş planı & migration script (sqlite → pg)",
+        "labels": ["phase:F8", "type:data-migration"],
+        "estimate": 2,
+        "body": "## Goal\nStaging/prod Postgres'e veri taşıma.\n\n## Tasks\n- docker-compose.prod ile pg ayağa kalksın\n- prisma migrate deploy\n- sqlite→pg taşıma script’i (chunk’lı)\n- Staging’te aynı excel ile diff=0 doğrulaması\n\n## DoD\n- Staging doğrulandı, prod planı hazır\n\n## AC\n- Rollback planı yazılı\n\n## Dependencies\n- CI/CD tamam"
+      },
+      {
+        "title": "Loglama & runbook (import metrics, errors, rollback)",
+        "labels": ["phase:F8", "type:ops"],
+        "estimate": 1,
+        "body": "## Goal\nİzlenebilirlik, metrikler, hata durumunda aksiyon planı.\n\n## Tasks\n- Pino/morgan entegrasyonu\n- Import istatistikleri logu\n- Runbook: sık hatalar, çözüm adımları\n\n## DoD\n- Runbook /docs altında\n- Loglar prod’da JSON\n\n## AC\n- Her import için süre ve sayılar logda\n\n## Dependencies\n- Import akışı"
+      },
+      {
+        "title": "SRS & Veri Sözlüğü & API dokümantasyonu finalize et",
+        "labels": ["phase:F9", "type:docs"],
+        "estimate": 1,
+        "body": "## Goal\nSRS, veri sözlüğü, API endpointleri, kabul kriterleri tek yerde.\n\n## Tasks\n- /docs/srs.md\n- Excel kolonları → DB alanları mapping tablosu\n- Hatalar ve kodları\n\n## DoD\n- Yeni biri 1 saatte ayağa kaldırabilir seviyede docs\n\n## AC\n- Tüm endpointler örnek response’larla belgelendi\n\n## Dependencies\n- Tüm ana geliştirmeler"
+      },
+      {
+        "title": "Production checklist & rollback playbook",
+        "labels": ["phase:F10", "type:ops"],
+        "estimate": 1,
+        "body": "## Goal\nCanlı çıkış ve geri dönüş stratejileri yazılı ve testli.\n\n## Tasks\n- ENV ve secrets listesi\n- Backup/restore stratejisi (sqlite vol / pg dump)\n- Rollback prosedürü (ENV switch + replay)\n\n## DoD\n- Checklist /docs altında, ekip onaylı\n\n## AC\n- İlk canlı import sorunsuz; snapshot farkları 0 çıktı\n\n## Dependencies\n- Postgres migration & CD"
+      }
+    ]
+  }
+  
