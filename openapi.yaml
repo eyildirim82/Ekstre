@@ -1,0 +1,1436 @@
+openapi: 3.0.3
+info:
+  title: Cari Importer API
+  description: Excel dosyalarından cari hesap verilerini import etmek için API
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: API'nin çalışır durumda olup olmadığını kontrol eder
+      responses:
+        '200':
+          description: API çalışıyor
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "ok"
+
+  /imports/excel:
+    post:
+      summary: Excel dosyası yükle ve import et
+      description: Excel dosyasını yükleyip cari hesap verilerini import eder
+      tags:
+        - Imports
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Yüklenecek Excel dosyası
+              required:
+                - file
+      responses:
+        '201':
+          description: Dosya başarıyla yüklendi ve işlendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  file:
+                    $ref: '#/components/schemas/StagingFile'
+                  report:
+                    $ref: '#/components/schemas/ImportReport'
+        '400':
+          description: Dosya eksik veya geçersiz
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Sunucu hatası
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /imports/{id}:
+    get:
+      summary: Import durumunu kontrol et
+      description: Belirtilen ID'ye sahip import işleminin durumunu getirir
+      tags:
+        - Imports
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Import ID'si
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Import durumu başarıyla getirildi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StagingFile'
+        '404':
+          description: Import bulunamadı
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /customers/{code}/balances:
+    get:
+      summary: Müşteri bakiye geçmişi
+      description: Belirtilen müşteri koduna sahip müşterinin bakiye geçmişini getirir
+      tags:
+        - Customers
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: Müşteri kodu
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Müşteri bakiye geçmişi başarıyla getirildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customer:
+                    $ref: '#/components/schemas/Customer'
+                  snapshots:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CustomerBalanceSnapshot'
+        '404':
+          description: Müşteri bulunamadı
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /customers/{code}/transactions:
+    get:
+      summary: Müşteri işlemleri
+      description: Belirtilen müşteri koduna sahip müşterinin işlemlerini getirir
+      tags:
+        - Customers
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: Müşteri kodu
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Sayfa numarası
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Sayfa başına kayıt sayısı
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Müşteri işlemleri başarıyla getirildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customer:
+                    $ref: '#/components/schemas/Customer'
+                  transactions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      totalPages:
+                        type: integer
+                      hasNext:
+                        type: boolean
+                      hasPrev:
+                        type: boolean
+        '404':
+          description: Müşteri bulunamadı
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /transactions:
+    get:
+      summary: İşlem listesi
+      description: Filtrelenebilir işlem listesi getirir
+      tags:
+        - Transactions
+      parameters:
+        - name: code
+          in: query
+          description: Müşteri kodu
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: Başlangıç tarihi (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: Bitiş tarihi (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: type
+          in: query
+          description: Belge türü
+          schema:
+            type: string
+        - name: voucher
+          in: query
+          description: Evrak numarası (içerir)
+          schema:
+            type: string
+        - name: min
+          in: query
+          description: Minimum tutar (TL)
+          schema:
+            type: number
+        - name: max
+          in: query
+          description: Maksimum tutar (TL)
+          schema:
+            type: number
+        - name: page
+          in: query
+          description: Sayfa numarası
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          description: Sayfa başına kayıt sayısı
+          schema:
+            type: integer
+            default: 50
+        - name: sort
+          in: query
+          description: Sıralama
+          schema:
+            type: string
+            enum: [date_asc, date_desc, amount_asc, amount_desc]
+            default: date_desc
+      responses:
+        '200':
+          description: İşlem listesi başarıyla getirildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    description: Toplam kayıt sayısı
+                  page:
+                    type: integer
+                    description: Mevcut sayfa
+                  pageSize:
+                    type: integer
+                    description: Sayfa başına kayıt sayısı
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+
+  /transactions/by-customer/{code}:
+    get:
+      summary: Müşteri işlemleri (alternatif endpoint)
+      description: Belirtilen müşteri koduna sahip müşterinin işlemlerini getirir (filtreleme destekli)
+      tags:
+        - Transactions
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: Müşteri kodu
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: Başlangıç tarihi (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: Bitiş tarihi (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: type
+          in: query
+          description: Belge türü
+          schema:
+            type: string
+        - name: voucher
+          in: query
+          description: Evrak numarası (içerir)
+          schema:
+            type: string
+        - name: min
+          in: query
+          description: Minimum tutar (TL)
+          schema:
+            type: number
+        - name: max
+          in: query
+          description: Maksimum tutar (TL)
+          schema:
+            type: number
+        - name: page
+          in: query
+          description: Sayfa numarası
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          description: Sayfa başına kayıt sayısı
+          schema:
+            type: integer
+            default: 50
+        - name: sort
+          in: query
+          description: Sıralama
+          schema:
+            type: string
+            enum: [date_asc, date_desc, amount_asc, amount_desc]
+            default: date_desc
+      responses:
+        '200':
+          description: Müşteri işlemleri başarıyla getirildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    description: Toplam kayıt sayısı
+                  page:
+                    type: integer
+                    description: Mevcut sayfa
+                  pageSize:
+                    type: integer
+                    description: Sayfa başına kayıt sayısı
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+
+  /reports/dashboard:
+    get:
+      tags:
+        - Reports
+      summary: Genel özet raporu
+      description: Tüm sistem için genel özet raporu getirir
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Başlangıç tarihi (YYYY-MM-DD)
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Bitiş tarihi (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Dashboard raporu başarıyla getirildi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardReport'
+        '500':
+          $ref: '#/components/schemas/Error'
+
+  /reports/aging-analysis:
+    get:
+      tags:
+        - Reports
+      summary: Yaşlandırma analizi raporu
+      description: Müşteri borçlarının yaşlandırma analizini getirir
+      parameters:
+        - name: customerCode
+          in: query
+          schema:
+            type: string
+          description: Müşteri kodu (opsiyonel)
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, excel]
+            default: json
+          description: Rapor formatı
+      responses:
+        '200':
+          description: Yaşlandırma analizi başarıyla getirildi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingAnalysisReport'
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '500':
+          $ref: '#/components/schemas/Error'
+
+  /reports/trend-analysis:
+    get:
+      tags:
+        - Reports
+      summary: Trend analizi raporu
+      description: Belirli bir dönem için trend analizi getirir
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Başlangıç tarihi (YYYY-MM-DD)
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Bitiş tarihi (YYYY-MM-DD)
+        - name: customerCode
+          in: query
+          schema:
+            type: string
+          description: Müşteri kodu (opsiyonel)
+        - name: groupBy
+          in: query
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: month
+          description: Gruplama türü
+      responses:
+        '200':
+          description: Trend analizi başarıyla getirildi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendAnalysisReport'
+        '500':
+          $ref: '#/components/schemas/Error'
+
+  /reports/comparison:
+    get:
+      tags:
+        - Reports
+      summary: Karşılaştırmalı rapor
+      description: İki farklı dönem arasında karşılaştırmalı rapor getirir
+      parameters:
+        - name: period1From
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: 1. dönem başlangıç tarihi (YYYY-MM-DD)
+        - name: period1To
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: 1. dönem bitiş tarihi (YYYY-MM-DD)
+        - name: period2From
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: 2. dönem başlangıç tarihi (YYYY-MM-DD)
+        - name: period2To
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: 2. dönem bitiş tarihi (YYYY-MM-DD)
+        - name: customerCodes
+          in: query
+          schema:
+            type: string
+          description: Müşteri kodları (virgülle ayrılmış)
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, excel]
+            default: json
+          description: Rapor formatı
+      responses:
+        '200':
+          description: Karşılaştırmalı rapor başarıyla getirildi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComparisonReport'
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/schemas/Error'
+
+  /reports/customer-summary/{code}:
+    get:
+        tags:
+          - Reports
+        summary: Müşteri özet raporu
+        description: Belirli bir müşteri için özet rapor oluşturur
+        parameters:
+          - name: code
+            in: path
+            required: true
+            schema:
+              type: string
+            description: Müşteri kodu
+          - name: from
+            in: query
+            schema:
+              type: string
+              format: date
+            description: Başlangıç tarihi (YYYY-MM-DD)
+          - name: to
+            in: query
+            schema:
+              type: string
+              format: date
+            description: Bitiş tarihi (YYYY-MM-DD)
+        responses:
+          '200':
+            description: Başarılı
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    customer:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        code:
+                          type: string
+                        name:
+                          type: string
+                        phone:
+                          type: string
+                        address:
+                          type: string
+                        accountType:
+                          type: string
+                    period:
+                      type: object
+                      properties:
+                        from:
+                          type: string
+                        to:
+                          type: string
+                    summary:
+                      type: object
+                      properties:
+                        totalTransactions:
+                          type: integer
+                        totalDebit:
+                          type: number
+                        totalCredit:
+                          type: number
+                        balance:
+                          type: number
+                        balanceType:
+                          type: string
+                          enum: [BORÇ, ALACAK, SIFIR]
+                    recentTransactions:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Transaction'
+                    docTypeBreakdown:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          docType:
+                            type: string
+                          count:
+                            type: integer
+                          totalDebit:
+                            type: number
+                          totalCredit:
+                            type: number
+                          netAmount:
+                            type: number
+                    monthlyTrend:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          date:
+                            type: string
+                            format: date
+                          debit:
+                            type: number
+                          credit:
+                            type: number
+                          net:
+                            type: number
+                    generatedAt:
+                      type: string
+                      format: date-time
+          '404':
+            $ref: '#/components/schemas/Error'
+          '500':
+            $ref: '#/components/schemas/Error'
+
+  /reports/customer-list:
+      get:
+        tags:
+          - Reports
+        summary: Müşteri listesi raporu
+        description: Tüm müşterilerin bakiye ve işlem özetlerini listeler
+        parameters:
+          - name: from
+            in: query
+            schema:
+              type: string
+              format: date
+            description: Başlangıç tarihi (YYYY-MM-DD)
+          - name: to
+            in: query
+            schema:
+              type: string
+              format: date
+            description: Bitiş tarihi (YYYY-MM-DD)
+          - name: minBalance
+            in: query
+            schema:
+              type: number
+            description: Minimum bakiye filtresi
+          - name: maxBalance
+            in: query
+            schema:
+              type: number
+            description: Maksimum bakiye filtresi
+          - name: accountType
+            in: query
+            schema:
+              type: string
+            description: Hesap türü filtresi
+          - name: page
+            in: query
+            schema:
+              type: integer
+              default: 1
+            description: Sayfa numarası
+          - name: pageSize
+            in: query
+            schema:
+              type: integer
+              default: 50
+            description: Sayfa başına kayıt sayısı
+          - name: sort
+            in: query
+            schema:
+              type: string
+              enum: [balance_asc, balance_desc, name_asc, name_desc, code_asc, code_desc]
+              default: balance_desc
+            description: Sıralama kriteri
+        responses:
+          '200':
+            description: Başarılı
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    summary:
+                      type: object
+                      properties:
+                        totalCustomers:
+                          type: integer
+                        totalBalance:
+                          type: string
+                        totalDebit:
+                          type: string
+                        totalCredit:
+                          type: string
+                        debtCustomers:
+                          type: integer
+                        creditCustomers:
+                          type: integer
+                        zeroCustomers:
+                          type: integer
+                    pagination:
+                      type: object
+                      properties:
+                        page:
+                          type: integer
+                        pageSize:
+                          type: integer
+                        total:
+                          type: integer
+                        totalPages:
+                          type: integer
+                        hasNext:
+                          type: boolean
+                        hasPrev:
+                          type: boolean
+                    customers:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          code:
+                            type: string
+                          name:
+                            type: string
+                          phone:
+                            type: string
+                          address:
+                            type: string
+                          accountType:
+                            type: string
+                          totalDebit:
+                            type: number
+                          totalCredit:
+                            type: number
+                          balance:
+                            type: number
+                          balanceType:
+                            type: string
+                            enum: [BORÇ, ALACAK, SIFIR]
+                          transactionCount:
+                            type: integer
+                    filters:
+                      type: object
+                      properties:
+                        from:
+                          type: string
+                        to:
+                          type: string
+                        minBalance:
+                          type: number
+                        maxBalance:
+                          type: number
+                        accountType:
+                          type: string
+                        sort:
+                          type: string
+                    generatedAt:
+                      type: string
+                      format: date-time
+          '500':
+            $ref: '#/components/schemas/Error'
+
+  /reports/customer-detail/{code}:
+      get:
+        tags:
+          - Reports
+        summary: Detaylı müşteri raporu
+        description: Belirli bir müşteri için detaylı rapor oluşturur (PDF desteği ile)
+        parameters:
+          - name: code
+            in: path
+            required: true
+            schema:
+              type: string
+            description: Müşteri kodu
+          - name: from
+            in: query
+            schema:
+              type: string
+              format: date
+            description: Başlangıç tarihi (YYYY-MM-DD)
+          - name: to
+            in: query
+            schema:
+              type: string
+              format: date
+            description: Bitiş tarihi (YYYY-MM-DD)
+          - name: format
+            in: query
+            schema:
+              type: string
+              enum: [json, pdf]
+              default: json
+            description: Çıktı formatı
+        responses:
+          '200':
+            description: Başarılı
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    customer:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        code:
+                          type: string
+                        name:
+                          type: string
+                        phone:
+                          type: string
+                        address:
+                          type: string
+                        accountType:
+                          type: string
+                        tag1:
+                          type: string
+                        tag2:
+                          type: string
+                    period:
+                      type: object
+                      properties:
+                        from:
+                          type: string
+                        to:
+                          type: string
+                    summary:
+                      type: object
+                      properties:
+                        totalTransactions:
+                          type: integer
+                        totalDebit:
+                          type: number
+                        totalCredit:
+                          type: number
+                        balance:
+                          type: number
+                        balanceType:
+                          type: string
+                          enum: [BORÇ, ALACAK, SIFIR]
+                    transactions:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Transaction'
+                    docTypeAnalysis:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          docType:
+                            type: string
+                          count:
+                            type: integer
+                          totalDebit:
+                            type: number
+                          totalCredit:
+                            type: number
+                          netAmount:
+                            type: number
+                    monthlySummary:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          month:
+                            type: string
+                          count:
+                            type: integer
+                          totalDebit:
+                            type: number
+                          totalCredit:
+                            type: number
+                          netAmount:
+                            type: number
+                    generatedAt:
+                      type: string
+                      format: date-time
+          '404':
+            $ref: '#/components/schemas/Error'
+          '500':
+            $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    StagingFile:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Dosya ID'si
+        originalFilename:
+          type: string
+          description: Orijinal dosya adı
+        uploadedAt:
+          type: string
+          format: date-time
+          description: Yükleme tarihi
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, PROCESSED, FAILED]
+          description: İşlem durumu
+        rowCount:
+          type: integer
+          description: Toplam satır sayısı
+        insertedCount:
+          type: integer
+          description: Eklenen kayıt sayısı
+        updatedCount:
+          type: integer
+          description: Güncellenen kayıt sayısı
+        skippedCount:
+          type: integer
+          description: Atlanan kayıt sayısı
+        error:
+          type: string
+          nullable: true
+          description: Hata mesajı (varsa)
+        customerBalances:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerBalanceSnapshot'
+
+    ImportReport:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Toplam işlenen kayıt sayısı
+        inserted:
+          type: integer
+          description: Eklenen kayıt sayısı
+        updated:
+          type: integer
+          description: Güncellenen kayıt sayısı
+        skipped:
+          type: integer
+          description: Atlanan kayıt sayısı
+
+    Customer:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Müşteri ID'si
+        code:
+          type: string
+          description: Müşteri kodu
+        name:
+          type: string
+          description: Müşteri adı
+        phone:
+          type: string
+          nullable: true
+          description: Telefon numarası
+        address:
+          type: string
+          nullable: true
+          description: Adres
+        accountType:
+          type: string
+          nullable: true
+          description: Hesap türü
+        tag1:
+          type: string
+          nullable: true
+          description: Özel kod 1
+        tag2:
+          type: string
+          nullable: true
+          description: Özel kod 2
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: İşlem ID'si
+        customer:
+          $ref: '#/components/schemas/Customer'
+        docType:
+          type: string
+          nullable: true
+          description: Belge türü
+        txnDate:
+          type: string
+          format: date-time
+          description: İşlem tarihi
+        voucherNo:
+          type: string
+          nullable: true
+          description: Evrak numarası
+        description:
+          type: string
+          nullable: true
+          description: Açıklama
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Vade tarihi
+        amountBase:
+          type: number
+          format: float
+          nullable: true
+          description: Matrah tutarı (TL)
+        discount:
+          type: number
+          format: float
+          nullable: true
+          description: İndirim tutarı (TL)
+        amountNet:
+          type: number
+          format: float
+          nullable: true
+          description: Net tutar (TL)
+        vat:
+          type: number
+          format: float
+          nullable: true
+          description: KDV tutarı (TL)
+        debit:
+          type: number
+          format: float
+          description: Borç tutarı (TL)
+        credit:
+          type: number
+          format: float
+          description: Alacak tutarı (TL)
+        currency:
+          type: string
+          description: Para birimi
+
+    CustomerBalanceSnapshot:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Snapshot ID'si
+        customerId:
+          type: integer
+          description: Müşteri ID'si
+        fileId:
+          type: integer
+          description: Dosya ID'si
+        reportedTotalDebit:
+          type: number
+          format: float
+          description: Raporlanan toplam borç
+        reportedTotalCredit:
+          type: number
+          format: float
+          description: Raporlanan toplam alacak
+        reportedDebtBalance:
+          type: number
+          format: float
+          description: Raporlanan borç bakiyesi
+        reportedCreditBalance:
+          type: number
+          format: float
+          description: Raporlanan alacak bakiyesi
+        calcTotalDebit:
+          type: number
+          format: float
+          description: Hesaplanan toplam borç
+        calcTotalCredit:
+          type: number
+          format: float
+          description: Hesaplanan toplam alacak
+        calcDebtBalance:
+          type: number
+          format: float
+          description: Hesaplanan borç bakiyesi
+        calcCreditBalance:
+          type: number
+          format: float
+          description: Hesaplanan alacak bakiyesi
+        diffTotalDebit:
+          type: number
+          format: float
+          description: Toplam borç farkı
+        diffTotalCredit:
+          type: number
+          format: float
+          description: Toplam alacak farkı
+        diffDebtBalance:
+          type: number
+          format: float
+          description: Borç bakiyesi farkı
+        diffCreditBalance:
+          type: number
+          format: float
+          description: Alacak bakiyesi farkı
+        createdAt:
+          type: string
+          format: date-time
+          description: Oluşturulma tarihi
+        file:
+          $ref: '#/components/schemas/StagingFile'
+
+    DashboardReport:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            from:
+              type: string
+              nullable: true
+            to:
+              type: string
+              nullable: true
+        summary:
+          type: object
+          properties:
+            totalCustomers:
+              type: integer
+            totalTransactions:
+              type: integer
+            totalDebit:
+              type: number
+            totalCredit:
+              type: number
+            netAmount:
+              type: number
+        customerAnalysis:
+          type: object
+          properties:
+            totalCustomers:
+              type: integer
+            debtCustomers:
+              type: integer
+            creditCustomers:
+              type: integer
+            zeroCustomers:
+              type: integer
+            totalDebtAmount:
+              type: number
+            totalCreditAmount:
+              type: number
+        topCustomers:
+          type: object
+          properties:
+            topDebt:
+              type: array
+              items:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  name:
+                    type: string
+                  balance:
+                    type: number
+                  transactionCount:
+                    type: integer
+            topCredit:
+              type: array
+              items:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  name:
+                    type: string
+                  balance:
+                    type: number
+                  transactionCount:
+                    type: integer
+        monthlyTrend:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              debit:
+                type: number
+              credit:
+                type: number
+              count:
+                type: integer
+        docTypeBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              docType:
+                type: string
+              count:
+                type: integer
+              totalDebit:
+                type: number
+              totalCredit:
+                type: number
+              netAmount:
+                type: number
+        generatedAt:
+          type: string
+          format: date-time
+
+    AgingAnalysisReport:
+      type: object
+      properties:
+        summary:
+          type: object
+          properties:
+            totalCustomers:
+              type: integer
+            totalDebt:
+              type: number
+            agingBreakdown:
+              type: object
+              properties:
+                current:
+                  type: number
+                days30:
+                  type: number
+                days60:
+                  type: number
+                days90:
+                  type: number
+                over180:
+                  type: number
+        customers:
+          type: array
+          items:
+            type: object
+            properties:
+              customerId:
+                type: integer
+              code:
+                type: string
+              name:
+                type: string
+              totalDebt:
+                type: number
+              agingBuckets:
+                type: object
+                properties:
+                  current:
+                    type: number
+                  days30:
+                    type: number
+                  days60:
+                    type: number
+                  days90:
+                    type: number
+                  over180:
+                    type: number
+              oldestTransaction:
+                type: string
+                format: date-time
+                nullable: true
+        generatedAt:
+          type: string
+          format: date-time
+
+    TrendAnalysisReport:
+      type: object
+      properties:
+        filters:
+          type: object
+          properties:
+            from:
+              type: string
+              nullable: true
+            to:
+              type: string
+              nullable: true
+            customerCode:
+              type: string
+              nullable: true
+            groupBy:
+              type: string
+        summary:
+          type: object
+          properties:
+            totalPeriods:
+              type: integer
+            totalTransactions:
+              type: integer
+            totalDebit:
+              type: number
+            totalCredit:
+              type: number
+            averageGrowthRate:
+              type: number
+        trend:
+          type: array
+          items:
+            type: object
+            properties:
+              period:
+                type: string
+              count:
+                type: integer
+              totalDebit:
+                type: number
+              totalCredit:
+                type: number
+              netAmount:
+                type: number
+              uniqueCustomers:
+                type: integer
+              uniqueDocTypes:
+                type: integer
+              growthRate:
+                type: number
+        generatedAt:
+          type: string
+          format: date-time
+
+    ComparisonReport:
+      type: object
+      properties:
+        periods:
+          type: object
+          properties:
+            period1:
+              type: object
+              properties:
+                from:
+                  type: string
+                to:
+                  type: string
+            period2:
+              type: object
+              properties:
+                from:
+                  type: string
+                to:
+                  type: string
+        summary:
+          type: object
+          properties:
+            totalCustomers:
+              type: integer
+            increasedCustomers:
+              type: integer
+            decreasedCustomers:
+              type: integer
+            unchangedCustomers:
+              type: integer
+            averageChange:
+              type: number
+        comparison:
+          type: array
+          items:
+            type: object
+            properties:
+              customerId:
+                type: integer
+              code:
+                type: string
+              name:
+                type: string
+              period1:
+                type: object
+                properties:
+                  debit:
+                    type: number
+                  credit:
+                    type: number
+                  net:
+                    type: number
+                  transactionCount:
+                    type: integer
+              period2:
+                type: object
+                properties:
+                  debit:
+                    type: number
+                  credit:
+                    type: number
+                  net:
+                    type: number
+                  transactionCount:
+                    type: integer
+              change:
+                type: object
+                properties:
+                  amount:
+                    type: number
+                  percent:
+                    type: number
+                  direction:
+                    type: string
+        generatedAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Hata mesajı
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+tags:
+  - name: Imports
+    description: Excel dosyası import işlemleri
+  - name: Customers
+    description: Müşteri bilgileri ve bakiyeler
+  - name: Transactions
+    description: İşlem listeleme ve filtreleme
+  - name: Reports
+    description: Müşteri raporlama sistemi

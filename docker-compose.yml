@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: ./excel-cari-importer
+    environment:
+      DATABASE_URL: "file:/data/dev.db"
+      PORT: 3000
+      CORS_ORIGIN: "http://localhost:8080"
+    volumes:
+      - db:/data
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./excel-cari-importer-frontend
+      args:
+        VITE_API_URL: "http://localhost:3000"
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  db:

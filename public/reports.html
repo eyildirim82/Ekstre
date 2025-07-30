@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Müşteri Raporlama Sistemi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 15px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            background: none;
+            font-size: 1em;
+            font-weight: 500;
+        }
+
+        .nav-tab:hover {
+            background: #e9ecef;
+        }
+
+        .nav-tab.active {
+            background: white;
+            border-bottom: 3px solid #4facfe;
+            color: #4facfe;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .card-header {
+            border-bottom: 2px solid #f8f9fa;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .card-subtitle {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #4facfe;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        .table th,
+        .table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+            position: sticky;
+            top: 0;
+        }
+
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .pagination button:hover {
+            background: #f8f9fa;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination .current {
+            background: #4facfe;
+            color: white;
+            border-color: #4facfe;
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .nav-tabs {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Müşteri Raporlama Sistemi</h1>
+            <p>Kapsamlı müşteri analizi ve raporlama araçları</p>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('customer-list')">Müşteri Listesi</button>
+            <button class="nav-tab" onclick="showTab('customer-summary')">Müşteri Özeti</button>
+            <button class="nav-tab" onclick="showTab('customer-detail')">Detaylı Rapor</button>
+        </div>
+
+                 <!-- Müşteri Listesi Tab -->
+         <div id="customer-list" class="tab-content active">
+             <div class="card">
+                 <div class="card-header">
+                     <h2 class="card-title">Müşteri Listesi</h2>
+                     <p class="card-subtitle">Müşteri bakiyeleri ve filtreleme seçenekleri</p>
+                 </div>
+ 
+                 <form id="customer-list-form">
+                     <div class="form-row">
+                         <div class="form-group">
+                             <label for="cl-search">Arama</label>
+                             <input type="text" id="cl-search" class="form-control" placeholder="Müşteri kodu veya adı...">
+                         </div>
+                         <div class="form-group">
+                             <label for="cl-balance-type">Bakiye Durumu</label>
+                             <select id="cl-balance-type" class="form-control">
+                                 <option value="">Tümü</option>
+                                 <option value="debt">Sadece Borçlu</option>
+                                 <option value="credit">Sadece Alacaklı</option>
+                                 <option value="zero">Sıfır Bakiye</option>
+                             </select>
+                         </div>
+                     </div>
+                     <div class="form-row">
+                         <div class="form-group">
+                             <label for="cl-account-type">Hesap Türü</label>
+                             <select id="cl-account-type" class="form-control">
+                                 <option value="">Tümü</option>
+                                 <option value="Müşteri">Müşteri</option>
+                                 <option value="Satıcı">Satıcı</option>
+                             </select>
+                         </div>
+                         <div class="form-group">
+                             <label for="cl-sort">Sıralama</label>
+                             <select id="cl-sort" class="form-control">
+                                 <option value="balance_desc">Bakiye (Azalan)</option>
+                                 <option value="balance_asc">Bakiye (Artan)</option>
+                                 <option value="name_asc">İsim (A-Z)</option>
+                                 <option value="name_desc">İsim (Z-A)</option>
+                                 <option value="code_asc">Kod (A-Z)</option>
+                                 <option value="code_desc">Kod (Z-A)</option>
+                             </select>
+                         </div>
+                     </div>
+                     <button type="submit" class="btn btn-primary">Listeyi Güncelle</button>
+                 </form>
+ 
+                 <div id="customer-list-results"></div>
+             </div>
+         </div>
+
+        <!-- Müşteri Özeti Tab -->
+        <div id="customer-summary" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Müşteri Özet Raporu</h2>
+                    <p class="card-subtitle">Belirli bir müşteri için detaylı özet</p>
+                </div>
+
+                <form id="customer-summary-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="cs-customer-select">Müşteri Seç</label>
+                            <select id="cs-customer-select" class="form-control" required>
+                                <option value="">Müşteri seçin...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="cs-period">Dönem</label>
+                            <select id="cs-period" class="form-control">
+                                <option value="">Tüm Dönem</option>
+                                <option value="this-month">Bu Ay</option>
+                                <option value="last-month">Geçen Ay</option>
+                                <option value="this-year">Bu Yıl</option>
+                                <option value="last-year">Geçen Yıl</option>
+                                <option value="custom">Özel Dönem</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row" id="cs-custom-dates" style="display: none;">
+                        <div class="form-group">
+                            <label for="cs-from">Başlangıç Tarihi</label>
+                            <input type="date" id="cs-from" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="cs-to">Bitiş Tarihi</label>
+                            <input type="date" id="cs-to" class="form-control">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Özet Oluştur</button>
+                </form>
+
+                <div id="customer-summary-results"></div>
+            </div>
+        </div>
+
+        <!-- Detaylı Rapor Tab -->
+        <div id="customer-detail" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Detaylı Müşteri Raporu</h2>
+                    <p class="card-subtitle">Kapsamlı müşteri analizi ve işlem detayları</p>
+                </div>
+
+                <form id="customer-detail-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="cd-customer-select">Müşteri Seç</label>
+                            <select id="cd-customer-select" class="form-control" required>
+                                <option value="">Müşteri seçin...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="cd-period">Dönem</label>
+                            <select id="cd-period" class="form-control">
+                                <option value="">Tüm Dönem</option>
+                                <option value="this-month">Bu Ay</option>
+                                <option value="last-month">Geçen Ay</option>
+                                <option value="this-year">Bu Yıl</option>
+                                <option value="last-year">Geçen Yıl</option>
+                                <option value="custom">Özel Dönem</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row" id="cd-custom-dates" style="display: none;">
+                        <div class="form-group">
+                            <label for="cd-from">Başlangıç Tarihi</label>
+                            <input type="date" id="cd-from" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="cd-to">Bitiş Tarihi</label>
+                            <input type="date" id="cd-to" class="form-control">
+                        </div>
+                    </div>
+                    <div class="export-buttons">
+                        <button type="submit" class="btn btn-primary">JSON Rapor Oluştur</button>
+                        <button type="button" class="btn btn-success" onclick="exportPDF()">PDF İndir</button>
+                    </div>
+                </form>
+
+                <div id="customer-detail-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global müşteri listesi
+        let customerList = [];
+
+                 // Sayfa yüklendiğinde müşteri listesini yükle
+         document.addEventListener('DOMContentLoaded', function() {
+             loadCustomerList();
+             // Müşteri listesi tabını otomatik olarak yükle
+             loadCustomerTableData();
+         });
+
+                 // Müşteri listesini yükle
+         async function loadCustomerList() {
+             try {
+                 const response = await fetch('/reports/customers');
+                 const data = await response.json();
+                 
+                 if (response.ok) {
+                     customerList = data.customers;
+                     populateCustomerSelects();
+                 } else {
+                     console.error('Müşteri listesi yüklenemedi:', data.error);
+                 }
+             } catch (error) {
+                 console.error('Müşteri listesi yükleme hatası:', error);
+             }
+         }
+
+         // Müşteri tablosu verilerini yükle
+         async function loadCustomerTableData() {
+             const resultsDiv = document.getElementById('customer-list-results');
+             resultsDiv.innerHTML = '<div class="loading">Müşteri listesi yükleniyor...</div>';
+
+             try {
+                 const response = await fetch('/reports/customers');
+                 const data = await response.json();
+
+                 if (response.ok) {
+                     displayCustomerTable(data);
+                 } else {
+                     resultsDiv.innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+                 }
+             } catch (error) {
+                 resultsDiv.innerHTML = `<div class="error">Bağlantı hatası: ${error.message}</div>`;
+             }
+         }
+
+        // Müşteri dropdown'larını doldur
+        function populateCustomerSelects() {
+            const selects = ['cs-customer-select', 'cd-customer-select'];
+            
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    // Mevcut seçenekleri temizle (ilk seçenek hariç)
+                    while (select.children.length > 1) {
+                        select.removeChild(select.lastChild);
+                    }
+                    
+                    // Müşterileri ekle
+                    customerList.forEach(customer => {
+                        const option = document.createElement('option');
+                        option.value = customer.code;
+                        option.textContent = `${customer.code} - ${customer.name}`;
+                        select.appendChild(option);
+                    });
+                }
+            });
+        }
+
+        // Tab switching
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Date period handling
+        document.getElementById('cs-period').addEventListener('change', function() {
+            const customDates = document.getElementById('cs-custom-dates');
+            if (this.value === 'custom') {
+                customDates.style.display = 'grid';
+            } else {
+                customDates.style.display = 'none';
+                setDateRange(this.value, 'cs');
+            }
+        });
+
+        document.getElementById('cd-period').addEventListener('change', function() {
+            const customDates = document.getElementById('cd-custom-dates');
+            if (this.value === 'custom') {
+                customDates.style.display = 'grid';
+            } else {
+                customDates.style.display = 'none';
+                setDateRange(this.value, 'cd');
+            }
+        });
+
+        function setDateRange(period, prefix) {
+            const today = new Date();
+            let from, to;
+
+            switch (period) {
+                case 'this-month':
+                    from = new Date(today.getFullYear(), today.getMonth(), 1);
+                    to = today;
+                    break;
+                case 'last-month':
+                    from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    to = new Date(today.getFullYear(), today.getMonth(), 0);
+                    break;
+                case 'this-year':
+                    from = new Date(today.getFullYear(), 0, 1);
+                    to = today;
+                    break;
+                case 'last-year':
+                    from = new Date(today.getFullYear() - 1, 0, 1);
+                    to = new Date(today.getFullYear() - 1, 11, 31);
+                    break;
+                default:
+                    return;
+            }
+
+            document.getElementById(`${prefix}-from`).value = from.toISOString().split('T')[0];
+            document.getElementById(`${prefix}-to`).value = to.toISOString().split('T')[0];
+        }
+
+                 // Customer List Form
+         document.getElementById('customer-list-form').addEventListener('submit', async function(e) {
+             e.preventDefault();
+             const resultsDiv = document.getElementById('customer-list-results');
+             resultsDiv.innerHTML = '<div class="loading">Müşteri listesi yükleniyor...</div>';
+
+             const params = new URLSearchParams();
+             if (document.getElementById('cl-search').value) params.append('search', document.getElementById('cl-search').value);
+             if (document.getElementById('cl-balance-type').value) params.append('balanceType', document.getElementById('cl-balance-type').value);
+             if (document.getElementById('cl-account-type').value) params.append('accountType', document.getElementById('cl-account-type').value);
+
+             try {
+                 const response = await fetch(`/reports/customers?${params}`);
+                 const data = await response.json();
+
+                 if (response.ok) {
+                     displayCustomerTable(data);
+                 } else {
+                     resultsDiv.innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+                 }
+             } catch (error) {
+                 resultsDiv.innerHTML = `<div class="error">Bağlantı hatası: ${error.message}</div>`;
+             }
+         });
+
+                 function displayCustomerTable(data) {
+             const resultsDiv = document.getElementById('customer-list-results');
+             
+             // İstatistikleri hesapla
+             const totalCustomers = data.customers.length;
+             const debtCustomers = data.customers.filter(c => (c.balance || 0) > 0).length;
+             const creditCustomers = data.customers.filter(c => (c.balance || 0) < 0).length;
+             const zeroCustomers = data.customers.filter(c => (c.balance || 0) === 0).length;
+             const totalBalance = data.customers.reduce((sum, c) => sum + (c.balance || 0), 0);
+             
+             let html = `
+                 <div class="card">
+                     <div class="card-header">
+                         <h3>Özet İstatistikler</h3>
+                     </div>
+                     <div class="stats-grid">
+                         <div class="stat-item">
+                             <div class="stat-value">${totalCustomers}</div>
+                             <div class="stat-label">Toplam Müşteri</div>
+                         </div>
+                         <div class="stat-item">
+                             <div class="stat-value">${totalBalance.toFixed(2)} ₺</div>
+                             <div class="stat-label">Toplam Bakiye</div>
+                         </div>
+                         <div class="stat-item">
+                             <div class="stat-value">${debtCustomers}</div>
+                             <div class="stat-label">Borçlu Müşteri</div>
+                         </div>
+                         <div class="stat-item">
+                             <div class="stat-value">${creditCustomers}</div>
+                             <div class="stat-label">Alacaklı Müşteri</div>
+                         </div>
+                     </div>
+                 </div>
+
+                 <div class="card">
+                     <div class="card-header">
+                         <h3>Müşteri Tablosu</h3>
+                         <p>Toplam ${totalCustomers} müşteri listeleniyor</p>
+                     </div>
+                     <div class="table-container">
+                         <table class="table">
+                             <thead>
+                                 <tr>
+                                     <th>Kod</th>
+                                     <th>İsim</th>
+                                     <th>Telefon</th>
+                                     <th>Hesap Türü</th>
+                                     <th>Toplam Borç</th>
+                                     <th>Toplam Alacak</th>
+                                     <th>Bakiye</th>
+                                     <th>Durum</th>
+                                     <th>İşlem Sayısı</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+             `;
+
+             data.customers.forEach(customer => {
+                 const balance = customer.balance || 0;
+                 const balanceClass = balance > 0 ? 'badge-danger' : balance < 0 ? 'badge-success' : 'badge-info';
+                 const balanceType = balance > 0 ? 'BORÇ' : balance < 0 ? 'ALACAK' : 'SIFIR';
+                 
+                 html += `
+                     <tr>
+                         <td><strong>${customer.code}</strong></td>
+                         <td>${customer.name}</td>
+                         <td>${customer.phone || '-'}</td>
+                         <td>${customer.accountType || '-'}</td>
+                         <td>${(customer.totalDebit || 0).toFixed(2)} ₺</td>
+                         <td>${(customer.totalCredit || 0).toFixed(2)} ₺</td>
+                         <td><strong>${balance.toFixed(2)} ₺</strong></td>
+                         <td><span class="badge ${balanceClass}">${balanceType}</span></td>
+                         <td>${customer.transactionCount || 0}</td>
+                     </tr>
+                 `;
+             });
+
+             html += `
+                             </tbody>
+                         </table>
+                     </div>
+                 </div>
+             `;
+
+             resultsDiv.innerHTML = html;
+         }
+
+        // Customer Summary Form
+        document.getElementById('customer-summary-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const resultsDiv = document.getElementById('customer-summary-results');
+            resultsDiv.innerHTML = '<div class="loading">Özet oluşturuluyor...</div>';
+
+            const code = document.getElementById('cs-customer-select').value;
+            if (!code) {
+                resultsDiv.innerHTML = '<div class="error">Lütfen bir müşteri seçin</div>';
+                return;
+            }
+
+            const params = new URLSearchParams();
+            if (document.getElementById('cs-from').value) params.append('from', document.getElementById('cs-from').value);
+            if (document.getElementById('cs-to').value) params.append('to', document.getElementById('cs-to').value);
+
+            try {
+                const response = await fetch(`/reports/customer-summary/${code}?${params}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayCustomerSummary(data);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Bağlantı hatası: ${error.message}</div>`;
+            }
+        });
+
+        function displayCustomerSummary(data) {
+            const resultsDiv = document.getElementById('customer-summary-results');
+            
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <h3>${data.customer.name} (${data.customer.code})</h3>
+                        <p>${data.customer.address || 'Adres bilgisi yok'}</p>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">${data.summary.totalTransactions}</div>
+                            <div class="stat-label">Toplam İşlem</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.summary.totalDebit.toFixed(2)} ₺</div>
+                            <div class="stat-label">Toplam Borç</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.summary.totalCredit.toFixed(2)} ₺</div>
+                            <div class="stat-label">Toplam Alacak</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.summary.balance.toFixed(2)} ₺</div>
+                            <div class="stat-label">Güncel Bakiye</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Son İşlemler</h3>
+                    </div>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Tarih</th>
+                                    <th>Belge Türü</th>
+                                    <th>Fiş No</th>
+                                    <th>Açıklama</th>
+                                    <th>Borç</th>
+                                    <th>Alacak</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            data.recentTransactions.forEach(tx => {
+                html += `
+                    <tr>
+                        <td>${new Date(tx.txnDate).toLocaleDateString('tr-TR')}</td>
+                        <td>${tx.docType || '-'}</td>
+                        <td>${tx.voucherNo || '-'}</td>
+                        <td>${tx.description || '-'}</td>
+                        <td>${tx.debit ? tx.debit.toFixed(2) + ' ₺' : '-'}</td>
+                        <td>${tx.credit ? tx.credit.toFixed(2) + ' ₺' : '-'}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Customer Detail Form
+        document.getElementById('customer-detail-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const resultsDiv = document.getElementById('customer-detail-results');
+            resultsDiv.innerHTML = '<div class="loading">Detaylı rapor oluşturuluyor...</div>';
+
+            const code = document.getElementById('cd-customer-select').value;
+            if (!code) {
+                resultsDiv.innerHTML = '<div class="error">Lütfen bir müşteri seçin</div>';
+                return;
+            }
+
+            const params = new URLSearchParams();
+            if (document.getElementById('cd-from').value) params.append('from', document.getElementById('cd-from').value);
+            if (document.getElementById('cd-to').value) params.append('to', document.getElementById('cd-to').value);
+
+            try {
+                const response = await fetch(`/reports/customer-detail/${code}?${params}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayCustomerDetail(data);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Bağlantı hatası: ${error.message}</div>`;
+            }
+        });
+
+        function displayCustomerDetail(data) {
+            const resultsDiv = document.getElementById('customer-detail-results');
+            
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <h3>${data.customer.name} - Detaylı Rapor</h3>
+                        <p>Kod: ${data.customer.code} | Hesap Türü: ${data.customer.accountType || 'Belirtilmemiş'}</p>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">${data.summary.totalTransactions}</div>
+                            <div class="stat-label">Toplam İşlem</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.summary.totalDebit.toFixed(2)} ₺</div>
+                            <div class="stat-label">Toplam Borç</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.summary.totalCredit.toFixed(2)} ₺</div>
+                            <div class="stat-label">Toplam Alacak</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.summary.balance.toFixed(2)} ₺</div>
+                            <div class="stat-label">Güncel Bakiye</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Belge Türü Analizi</h3>
+                    </div>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Belge Türü</th>
+                                    <th>İşlem Sayısı</th>
+                                    <th>Toplam Borç</th>
+                                    <th>Toplam Alacak</th>
+                                    <th>Net Tutar</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            data.docTypeAnalysis.forEach(analysis => {
+                html += `
+                    <tr>
+                        <td>${analysis.docType}</td>
+                        <td>${analysis.count}</td>
+                        <td>${analysis.totalDebit.toFixed(2)} ₺</td>
+                        <td>${analysis.totalCredit.toFixed(2)} ₺</td>
+                        <td><strong>${analysis.netAmount.toFixed(2)} ₺</strong></td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+
+        function exportPDF() {
+            const code = document.getElementById('cd-customer-select').value;
+            if (!code) {
+                alert('Lütfen bir müşteri seçin');
+                return;
+            }
+
+            const params = new URLSearchParams();
+            if (document.getElementById('cd-from').value) params.append('from', document.getElementById('cd-from').value);
+            if (document.getElementById('cd-to').value) params.append('to', document.getElementById('cd-to').value);
+            params.append('format', 'pdf');
+
+            window.open(`/reports/customer-detail/${code}?${params}`, '_blank');
+        }
+
+        function changePage(page) {
+            // Update form and submit
+            const form = document.getElementById('customer-list-form');
+            const pageInput = document.createElement('input');
+            pageInput.type = 'hidden';
+            pageInput.name = 'page';
+            pageInput.value = page;
+            form.appendChild(pageInput);
+            form.dispatchEvent(new Event('submit'));
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gelişmiş Raporlama Sistemi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+            color: #6c757d;
+        }
+
+        .tab:hover {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .card-title {
+            font-size: 1.5em;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        .card-subtitle {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        .table th {
+            background: #f8f9fa;
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .table td {
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+            color: #495057;
+        }
+
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-size: 1.1em;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #c3e6cb;
+        }
+
+        .chart-container {
+            height: 400px;
+            margin: 20px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Gelişmiş Raporlama Sistemi</h1>
+            <p>Kapsamlı finansal analiz ve raporlama araçları</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('dashboard')">📈 Dashboard</div>
+            <div class="tab" onclick="showTab('aging')">⏰ Yaşlandırma Analizi</div>
+            <div class="tab" onclick="showTab('trend')">📈 Trend Analizi</div>
+            <div class="tab" onclick="showTab('comparison')">⚖️ Karşılaştırma</div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Genel Özet Raporu</h2>
+                    <p class="card-subtitle">Tüm sistem için genel istatistikler ve analizler</p>
+                </div>
+                <div class="card-body">
+                    <form id="dashboard-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="d-from">Başlangıç Tarihi</label>
+                                <input type="date" id="d-from" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="d-to">Bitiş Tarihi</label>
+                                <input type="date" id="d-to" class="form-control">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Raporu Oluştur</button>
+                    </form>
+
+                    <div id="dashboard-results"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aging Analysis Tab -->
+        <div id="aging" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Yaşlandırma Analizi</h2>
+                    <p class="card-subtitle">Müşteri borçlarının yaşlandırma analizi</p>
+                </div>
+                <div class="card-body">
+                    <form id="aging-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="a-customer">Müşteri Kodu (Opsiyonel)</label>
+                                <input type="text" id="a-customer" class="form-control" placeholder="Belirli bir müşteri için...">
+                            </div>
+                            <div class="form-group">
+                                <label for="a-format">Rapor Formatı</label>
+                                <select id="a-format" class="form-control">
+                                    <option value="json">JSON</option>
+                                    <option value="excel">Excel</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Analizi Oluştur</button>
+                        <button type="button" onclick="downloadAgingExcel()" class="btn btn-success">Excel İndir</button>
+                    </form>
+
+                    <div id="aging-results"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trend Analysis Tab -->
+        <div id="trend" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Trend Analizi</h2>
+                    <p class="card-subtitle">Belirli bir dönem için trend analizi</p>
+                </div>
+                <div class="card-body">
+                    <form id="trend-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="t-from">Başlangıç Tarihi</label>
+                                <input type="date" id="t-from" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="t-to">Bitiş Tarihi</label>
+                                <input type="date" id="t-to" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="t-customer">Müşteri Kodu (Opsiyonel)</label>
+                                <input type="text" id="t-customer" class="form-control" placeholder="Belirli bir müşteri için...">
+                            </div>
+                            <div class="form-group">
+                                <label for="t-groupby">Gruplama</label>
+                                <select id="t-groupby" class="form-control">
+                                    <option value="month">Aylık</option>
+                                    <option value="week">Haftalık</option>
+                                    <option value="day">Günlük</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Trend Analizi Oluştur</button>
+                    </form>
+
+                    <div id="trend-results"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Tab -->
+        <div id="comparison" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Karşılaştırmalı Rapor</h2>
+                    <p class="card-subtitle">İki farklı dönem arasında karşılaştırma</p>
+                </div>
+                <div class="card-body">
+                    <form id="comparison-form">
+                        <div class="comparison-grid">
+                            <div>
+                                <h3>1. Dönem</h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="c1-from">Başlangıç Tarihi</label>
+                                        <input type="date" id="c1-from" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="c1-to">Bitiş Tarihi</label>
+                                        <input type="date" id="c1-to" class="form-control" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h3>2. Dönem</h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="c2-from">Başlangıç Tarihi</label>
+                                        <input type="date" id="c2-from" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="c2-to">Bitiş Tarihi</label>
+                                        <input type="date" id="c2-to" class="form-control" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="c-customers">Müşteri Kodları (Virgülle ayrılmış)</label>
+                                <input type="text" id="c-customers" class="form-control" placeholder="MD0001,MD0002,MD0003...">
+                            </div>
+                            <div class="form-group">
+                                <label for="c-format">Rapor Formatı</label>
+                                <select id="c-format" class="form-control">
+                                    <option value="json">JSON</option>
+                                    <option value="excel">Excel</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Karşılaştırma Oluştur</button>
+                        <button type="button" onclick="downloadComparisonExcel()" class="btn btn-success">Excel İndir</button>
+                    </form>
+
+                    <div id="comparison-results"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // Dashboard form
+        document.getElementById('dashboard-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const resultsDiv = document.getElementById('dashboard-results');
+            resultsDiv.innerHTML = '<div class="loading">Dashboard raporu yükleniyor...</div>';
+            
+            const params = new URLSearchParams();
+            if (document.getElementById('d-from').value) params.append('from', document.getElementById('d-from').value);
+            if (document.getElementById('d-to').value) params.append('to', document.getElementById('d-to').value);
+            
+            try {
+                const response = await fetch(`/reports/dashboard?${params}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayDashboard(data);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Bağlantı hatası: ${error.message}</div>`;
+            }
+        });
+
+        function displayDashboard(data) {
+            const resultsDiv = document.getElementById('dashboard-results');
+            
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.totalCustomers}</div>
+                        <div class="stat-label">Toplam Müşteri</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.totalTransactions}</div>
+                        <div class="stat-label">Toplam İşlem</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.totalDebit.toFixed(2)} ₺</div>
+                        <div class="stat-label">Toplam Borç</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.totalCredit.toFixed(2)} ₺</div>
+                        <div class="stat-label">Toplam Alacak</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Müşteri Analizi</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value">${data.customerAnalysis.debtCustomers}</div>
+                                <div class="stat-label">Borçlu Müşteri</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${data.customerAnalysis.creditCustomers}</div>
+                                <div class="stat-label">Alacaklı Müşteri</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${data.customerAnalysis.zeroCustomers}</div>
+                                <div class="stat-label">Sıfır Bakiye</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>En Büyük Borçlu Müşteriler</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Kod</th>
+                                        <th>Müşteri Adı</th>
+                                        <th>Bakiye</th>
+                                        <th>İşlem Sayısı</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.topCustomers.topDebt.map(customer => `
+                                        <tr>
+                                            <td><strong>${customer.code}</strong></td>
+                                            <td>${customer.name}</td>
+                                            <td><span class="badge badge-danger">${customer.balance.toFixed(2)} ₺</span></td>
+                                            <td>${customer.transactionCount}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Belge Türü Dağılımı</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Belge Türü</th>
+                                        <th>Adet</th>
+                                        <th>Toplam Borç</th>
+                                        <th>Toplam Alacak</th>
+                                        <th>Net Tutar</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.docTypeBreakdown.map(item => `
+                                        <tr>
+                                            <td>${item.docType}</td>
+                                            <td>${item.count}</td>
+                                            <td>${item.totalDebit.toFixed(2)} ₺</td>
+                                            <td>${item.totalCredit.toFixed(2)} ₺</td>
+                                            <td><span class="badge ${item.netAmount > 0 ? 'badge-danger' : 'badge-success'}">${item.netAmount.toFixed(2)} ₺</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        // Aging Analysis form
+        document.getElementById('aging-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const resultsDiv = document.getElementById('aging-results');
+            resultsDiv.innerHTML = '<div class="loading">Yaşlandırma analizi yükleniyor...</div>';
+            
+            const params = new URLSearchParams();
+            if (document.getElementById('a-customer').value) params.append('customerCode', document.getElementById('a-customer').value);
+            params.append('format', 'json');
+            
+            try {
+                const response = await fetch(`/reports/aging-analysis?${params}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayAgingAnalysis(data);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Bağlantı hatası: ${error.message}</div>`;
+            }
+        });
+
+        function displayAgingAnalysis(data) {
+            const resultsDiv = document.getElementById('aging-results');
+            
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.totalCustomers}</div>
+                        <div class="stat-label">Borçlu Müşteri</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.totalDebt.toFixed(2)} ₺</div>
+                        <div class="stat-label">Toplam Borç</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.agingBreakdown.current.toFixed(2)} ₺</div>
+                        <div class="stat-label">0-30 Gün</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.agingBreakdown.over180.toFixed(2)} ₺</div>
+                        <div class="stat-label">180+ Gün</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Yaşlandırma Detayları</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Müşteri Kodu</th>
+                                        <th>Müşteri Adı</th>
+                                        <th>Toplam Borç</th>
+                                        <th>0-30 Gün</th>
+                                        <th>31-60 Gün</th>
+                                        <th>61-90 Gün</th>
+                                        <th>91-180 Gün</th>
+                                        <th>180+ Gün</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.customers.map(customer => `
+                                        <tr>
+                                            <td><strong>${customer.code}</strong></td>
+                                            <td>${customer.name}</td>
+                                            <td><strong>${customer.totalDebt.toFixed(2)} ₺</strong></td>
+                                            <td>${customer.agingBuckets.current.toFixed(2)} ₺</td>
+                                            <td>${customer.agingBuckets.days30.toFixed(2)} ₺</td>
+                                            <td>${customer.agingBuckets.days60.toFixed(2)} ₺</td>
+                                            <td>${customer.agingBuckets.days90.toFixed(2)} ₺</td>
+                                            <td><span class="badge badge-danger">${customer.agingBuckets.over180.toFixed(2)} ₺</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        // Trend Analysis form
+        document.getElementById('trend-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const resultsDiv = document.getElementById('trend-results');
+            resultsDiv.innerHTML = '<div class="loading">Trend analizi yükleniyor...</div>';
+            
+            const params = new URLSearchParams();
+            if (document.getElementById('t-from').value) params.append('from', document.getElementById('t-from').value);
+            if (document.getElementById('t-to').value) params.append('to', document.getElementById('t-to').value);
+            if (document.getElementById('t-customer').value) params.append('customerCode', document.getElementById('t-customer').value);
+            params.append('groupBy', document.getElementById('t-groupby').value);
+            
+            try {
+                const response = await fetch(`/reports/trend-analysis?${params}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayTrendAnalysis(data);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Bağlantı hatası: ${error.message}</div>`;
+            }
+        });
+
+        function displayTrendAnalysis(data) {
+            const resultsDiv = document.getElementById('trend-results');
+            
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.totalPeriods}</div>
+                        <div class="stat-label">Toplam Dönem</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.totalTransactions}</div>
+                        <div class="stat-label">Toplam İşlem</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.averageGrowthRate.toFixed(2)}%</div>
+                        <div class="stat-label">Ortalama Büyüme</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Trend Verileri</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Dönem</th>
+                                        <th>İşlem Sayısı</th>
+                                        <th>Toplam Borç</th>
+                                        <th>Toplam Alacak</th>
+                                        <th>Net Tutar</th>
+                                        <th>Büyüme Oranı</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.trend.map(item => `
+                                        <tr>
+                                            <td><strong>${item.period}</strong></td>
+                                            <td>${item.count}</td>
+                                            <td>${item.totalDebit.toFixed(2)} ₺</td>
+                                            <td>${item.totalCredit.toFixed(2)} ₺</td>
+                                            <td><span class="badge ${item.netAmount > 0 ? 'badge-danger' : 'badge-success'}">${item.netAmount.toFixed(2)} ₺</span></td>
+                                            <td><span class="badge ${item.growthRate > 0 ? 'badge-success' : item.growthRate < 0 ? 'badge-danger' : 'badge-info'}">${item.growthRate.toFixed(2)}%</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        // Comparison form
+        document.getElementById('comparison-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const resultsDiv = document.getElementById('comparison-results');
+            resultsDiv.innerHTML = '<div class="loading">Karşılaştırma raporu yükleniyor...</div>';
+            
+            const params = new URLSearchParams();
+            params.append('period1From', document.getElementById('c1-from').value);
+            params.append('period1To', document.getElementById('c1-to').value);
+            params.append('period2From', document.getElementById('c2-from').value);
+            params.append('period2To', document.getElementById('c2-to').value);
+            if (document.getElementById('c-customers').value) params.append('customerCodes', document.getElementById('c-customers').value);
+            params.append('format', 'json');
+            
+            try {
+                const response = await fetch(`/reports/comparison?${params}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayComparison(data);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Bağlantı hatası: ${error.message}</div>`;
+            }
+        });
+
+        function displayComparison(data) {
+            const resultsDiv = document.getElementById('comparison-results');
+            
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.totalCustomers}</div>
+                        <div class="stat-label">Toplam Müşteri</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.increasedCustomers}</div>
+                        <div class="stat-label">Artış Gösteren</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.decreasedCustomers}</div>
+                        <div class="stat-label">Azalış Gösteren</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.summary.averageChange.toFixed(2)} ₺</div>
+                        <div class="stat-label">Ortalama Değişim</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Karşılaştırma Detayları</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Müşteri Kodu</th>
+                                        <th>Müşteri Adı</th>
+                                        <th>1. Dönem Net</th>
+                                        <th>2. Dönem Net</th>
+                                        <th>Değişim</th>
+                                        <th>Yüzde</th>
+                                        <th>Yön</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.comparison.map(item => `
+                                        <tr>
+                                            <td><strong>${item.code}</strong></td>
+                                            <td>${item.name}</td>
+                                            <td>${item.period1.net.toFixed(2)} ₺</td>
+                                            <td>${item.period2.net.toFixed(2)} ₺</td>
+                                            <td><span class="badge ${item.change.amount > 0 ? 'badge-danger' : item.change.amount < 0 ? 'badge-success' : 'badge-info'}">${item.change.amount.toFixed(2)} ₺</span></td>
+                                            <td>${item.change.percent.toFixed(2)}%</td>
+                                            <td><span class="badge ${item.change.direction === 'artış' ? 'badge-danger' : item.change.direction === 'azalış' ? 'badge-success' : 'badge-info'}">${item.change.direction}</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        // Excel download functions
+        function downloadAgingExcel() {
+            const params = new URLSearchParams();
+            if (document.getElementById('a-customer').value) params.append('customerCode', document.getElementById('a-customer').value);
+            params.append('format', 'excel');
+            
+            window.open(`/reports/aging-analysis?${params}`, '_blank');
+        }
+
+        function downloadComparisonExcel() {
+            const params = new URLSearchParams();
+            params.append('period1From', document.getElementById('c1-from').value);
+            params.append('period1To', document.getElementById('c1-to').value);
+            params.append('period2From', document.getElementById('c2-from').value);
+            params.append('period2To', document.getElementById('c2-to').value);
+            if (document.getElementById('c-customers').value) params.append('customerCodes', document.getElementById('c-customers').value);
+            params.append('format', 'excel');
+            
+            window.open(`/reports/comparison?${params}`, '_blank');
+        }
+
+        // Set default dates
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+            
+            document.getElementById('d-from').value = lastMonth.toISOString().split('T')[0];
+            document.getElementById('d-to').value = today.toISOString().split('T')[0];
+            
+            document.getElementById('t-from').value = lastMonth.toISOString().split('T')[0];
+            document.getElementById('t-to').value = today.toISOString().split('T')[0];
+        });
+    </script>
+</body>
+</html> 
