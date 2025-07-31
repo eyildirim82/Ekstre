@@ -1013,6 +1013,272 @@ router.get('/customer-detail/:code', async (req, res) => {
         });
     }
 });
+// Tahsilat özet raporu
+router.get('/collections-summary', async (req, res) => {
+    try {
+        const { from, to, customerCode, format = 'json' } = req.query;
+        // Tarih filtresi
+        const dateFilter = {};
+        if (from || to) {
+            dateFilter.txnDate = {};
+            if (from)
+                dateFilter.txnDate.gte = new Date(`${from}T00:00:00`);
+            if (to)
+                dateFilter.txnDate.lte = new Date(`${to}T23:59:59`);
+        }
+        // Müşteri filtresi
+        if (customerCode) {
+            dateFilter.customer = { code: String(customerCode) };
+        }
+        // Sadece borç işlemlerini al (tahsilat beklenen işlemler)
+        const debtTransactions = await prisma.transaction.findMany({
+            where: {
+                ...dateFilter,
+                debitCents: { gt: 0 } // Sadece borç işlemleri
+            },
+            include: {
+                customer: {
+                    select: {
+                        code: true,
+                        name: true
+                    }
+                }
+            },
+            orderBy: { dueDate: 'asc' }
+        });
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        // Vade tarihine göre beklenen tahsilatlar
+        const expectedCollections = debtTransactions.reduce((acc, tx) => {
+            const dueDate = tx.dueDate || tx.txnDate;
+            const daysDiff = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+            const amount = Number(tx.debitCents) / 100;
+            if (daysDiff <= 30) {
+                acc.days0to30 += amount;
+            }
+            else if (daysDiff <= 60) {
+                acc.days31to60 += amount;
+            }
+            else {
+                acc.days60plus += amount;
+            }
+            return acc;
+        }, { days0to30: 0, days31to60: 0, days60plus: 0 });
+        // Tahsilat yapılma tarihi geçmiş ama tahsil edilmemiş işlemler (gecikmiş)
+        const overdueTransactions = debtTransactions.filter(tx => {
+            const dueDate = tx.dueDate || tx.txnDate;
+            return dueDate < today;
+        });
+        const overdueAmount = overdueTransactions.reduce((sum, tx) => {
+            return sum + (Number(tx.debitCents) / 100);
+        }, 0);
+        // Aylık tahsilat hacmi (son 12 ay)
+        const monthlyCollections = await prisma.transaction.groupBy({
+            by: ['txnDate'],
+            where: {
+                ...dateFilter,
+                creditCents: { gt: 0 } // Sadece tahsilat işlemleri (alacak)
+            },
+            _sum: {
+                creditCents: true
+            },
+            _count: true
+        });
+        // Aylık verileri hazırla (son 12 ay)
+        const monthlyData = [];
+        for (let i = 11; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthKey = date.toISOString().substring(0, 7); // YYYY-MM
+            const monthTransactions = monthlyCollections.filter(tx => {
+                const txMonth = tx.txnDate.toISOString().substring(0, 7);
+                return txMonth === monthKey;
+            });
+            const totalAmount = monthTransactions.reduce((sum, tx) => {
+                return sum + (Number(tx._sum?.creditCents ?? 0) / 100);
+            }, 0);
+            monthlyData.push({
+                month: monthKey,
+                monthName: date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long' }),
+                amount: totalAmount,
+                count: monthTransactions.reduce((sum, tx) => sum + tx._count, 0)
+            });
+        }
+        // Tahsilat oranı hesapla
+        const totalReceivables = debtTransactions.reduce((sum, tx) => {
+            return sum + (Number(tx.debitCents) / 100);
+        }, 0);
+        const totalCollections = monthlyData.reduce((sum, month) => {
+            return sum + month.amount;
+        }, 0);
+        const collectionRate = totalReceivables > 0 ? (totalCollections / totalReceivables) * 100 : 0;
+        // Gecikmiş işlemlerin detayları
+        const overdueDetails = overdueTransactions.map(tx => ({
+            id: tx.id,
+            customerCode: tx.customer.code,
+            customerName: tx.customer.name,
+            docType: tx.docType,
+            txnDate: tx.txnDate,
+            dueDate: tx.dueDate || tx.txnDate,
+            voucherNo: tx.voucherNo,
+            description: tx.description,
+            amount: (0, money_1.centsToTL)(tx.debitCents),
+            daysOverdue: Math.floor((today.getTime() - (tx.dueDate || tx.txnDate).getTime()) / (1000 * 60 * 60 * 24))
+        }));
+        // Müşteri bazında gecikmiş özet
+        const overdueByCustomer = overdueTransactions.reduce((acc, tx) => {
+            const customerKey = tx.customer.code;
+            if (!acc[customerKey]) {
+                acc[customerKey] = {
+                    customerCode: tx.customer.code,
+                    customerName: tx.customer.name,
+                    totalAmount: 0,
+                    transactionCount: 0,
+                    oldestOverdue: null
+                };
+            }
+            acc[customerKey].totalAmount += Number(tx.debitCents) / 100;
+            acc[customerKey].transactionCount += 1;
+            const dueDate = tx.dueDate || tx.txnDate;
+            if (!acc[customerKey].oldestOverdue || dueDate < acc[customerKey].oldestOverdue) {
+                acc[customerKey].oldestOverdue = dueDate;
+            }
+            return acc;
+        }, {});
+        const overdueCustomerSummary = Object.values(overdueByCustomer)
+            .map((customer) => ({
+            ...customer,
+            totalAmount: (0, money_1.centsToTL)(customer.totalAmount * 100),
+            oldestOverdue: customer.oldestOverdue,
+            daysOldestOverdue: Math.floor((today.getTime() - customer.oldestOverdue.getTime()) / (1000 * 60 * 60 * 24))
+        }))
+            .sort((a, b) => b.totalAmount - a.totalAmount);
+        const report = {
+            period: {
+                from: from || null,
+                to: to || null
+            },
+            summary: {
+                totalReceivables: (0, money_1.centsToTL)(totalReceivables * 100),
+                totalCollections: (0, money_1.centsToTL)(totalCollections * 100),
+                collectionRate: Math.round(collectionRate * 100) / 100,
+                overdueAmount: (0, money_1.centsToTL)(overdueAmount * 100),
+                overdueTransactionCount: overdueTransactions.length,
+                overdueCustomerCount: Object.keys(overdueByCustomer).length
+            },
+            expectedCollections: {
+                days0to30: (0, money_1.centsToTL)(expectedCollections.days0to30 * 100),
+                days31to60: (0, money_1.centsToTL)(expectedCollections.days31to60 * 100),
+                days60plus: (0, money_1.centsToTL)(expectedCollections.days60plus * 100),
+                total: (0, money_1.centsToTL)((expectedCollections.days0to30 + expectedCollections.days31to60 + expectedCollections.days60plus) * 100)
+            },
+            monthlyCollections: monthlyData.map(month => ({
+                ...month,
+                amount: (0, money_1.centsToTL)(month.amount * 100)
+            })),
+            overdueAnalysis: {
+                summary: {
+                    totalAmount: (0, money_1.centsToTL)(overdueAmount * 100),
+                    transactionCount: overdueTransactions.length,
+                    customerCount: Object.keys(overdueByCustomer).length,
+                    averageDaysOverdue: overdueTransactions.length > 0
+                        ? Math.round(overdueTransactions.reduce((sum, tx) => {
+                            const dueDate = tx.dueDate || tx.txnDate;
+                            return sum + Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+                        }, 0) / overdueTransactions.length)
+                        : 0
+                },
+                byCustomer: overdueCustomerSummary,
+                transactions: overdueDetails.slice(0, 100) // İlk 100 gecikmiş işlem
+            },
+            generatedAt: new Date().toISOString()
+        };
+        if (format === 'excel') {
+            // Excel formatında döndür
+            const excelData = [
+                // Özet sayfası
+                {
+                    sheetName: 'Tahsilat Özeti',
+                    data: [
+                        ['Tahsilat Özet Raporu'],
+                        [''],
+                        ['Dönem', `${from || 'Tümü'} - ${to || 'Tümü'}`],
+                        ['Toplam Alacak', report.summary.totalReceivables],
+                        ['Toplam Tahsilat', report.summary.totalCollections],
+                        ['Tahsilat Oranı', `%${report.summary.collectionRate}`],
+                        ['Gecikmiş Tutar', report.summary.overdueAmount],
+                        ['Gecikmiş İşlem Sayısı', report.summary.overdueTransactionCount],
+                        [''],
+                        ['Beklenen Tahsilatlar'],
+                        ['0-30 Gün', report.expectedCollections.days0to30],
+                        ['31-60 Gün', report.expectedCollections.days31to60],
+                        ['60+ Gün', report.expectedCollections.days60plus],
+                        ['Toplam', report.expectedCollections.total]
+                    ]
+                },
+                // Aylık tahsilat sayfası
+                {
+                    sheetName: 'Aylık Tahsilat',
+                    data: [
+                        ['Ay', 'Tahsilat Tutarı', 'İşlem Sayısı'],
+                        ...monthlyData.map(month => [
+                            month.monthName,
+                            (0, money_1.centsToTL)(month.amount * 100),
+                            month.count
+                        ])
+                    ]
+                },
+                // Gecikmiş müşteriler sayfası
+                {
+                    sheetName: 'Gecikmiş Müşteriler',
+                    data: [
+                        ['Müşteri Kodu', 'Müşteri Adı', 'Toplam Gecikmiş Tutar', 'İşlem Sayısı', 'En Eski Gecikme', 'Gecikme Günü'],
+                        ...overdueCustomerSummary.map((customer) => [
+                            customer.customerCode,
+                            customer.customerName,
+                            customer.totalAmount,
+                            customer.transactionCount,
+                            customer.oldestOverdue ? customer.oldestOverdue.toLocaleDateString('tr-TR') : '-',
+                            customer.daysOldestOverdue
+                        ])
+                    ]
+                },
+                // Gecikmiş işlemler sayfası
+                {
+                    sheetName: 'Gecikmiş İşlemler',
+                    data: [
+                        ['Müşteri Kodu', 'Müşteri Adı', 'Belge Türü', 'İşlem Tarihi', 'Vade Tarihi', 'Fiş No', 'Açıklama', 'Tutar', 'Gecikme Günü'],
+                        ...overdueDetails.slice(0, 1000).map(tx => [
+                            tx.customerCode,
+                            tx.customerName,
+                            tx.docType || '-',
+                            tx.txnDate.toLocaleDateString('tr-TR'),
+                            tx.dueDate.toLocaleDateString('tr-TR'),
+                            tx.voucherNo || '-',
+                            tx.description || '-',
+                            tx.amount,
+                            tx.daysOverdue
+                        ])
+                    ]
+                }
+            ];
+            const buffer = generateExcel(excelData, 'tahsilat-ozet-raporu');
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', 'attachment; filename="tahsilat-ozet-raporu.xlsx"');
+            res.send(buffer);
+        }
+        else {
+            res.json(report);
+        }
+    }
+    catch (error) {
+        console.error('[COLLECTIONS SUMMARY REPORT ERROR]', error);
+        res.status(500).json({
+            error: error.message,
+            errorType: error.constructor.name,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
 // HTML rapor oluşturma fonksiyonu
 function generateHTMLReport(report) {
     const { customer, transactions, docTypeAnalysis, monthlySummary, summary } = report;

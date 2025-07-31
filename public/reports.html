@@ -373,6 +373,7 @@
             <button class="nav-tab active" onclick="showTab('customer-list')">Müşteri Listesi</button>
             <button class="nav-tab" onclick="showTab('customer-summary')">Müşteri Özeti</button>
             <button class="nav-tab" onclick="showTab('customer-detail')">Detaylı Rapor</button>
+            <button class="nav-tab" onclick="showTab('collections-summary')">Tahsilat Özeti</button>
         </div>
 
                  <!-- Müşteri Listesi Tab -->
@@ -519,6 +520,54 @@
                 <div id="customer-detail-results"></div>
             </div>
         </div>
+
+        <!-- Tahsilat Özeti Tab -->
+        <div id="collections-summary" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Tahsilat Özet Raporu</h2>
+                    <p class="card-subtitle">Vade tarihine göre beklenen tahsilatlar ve gecikmiş işlemler</p>
+                </div>
+
+                <form id="collections-summary-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="collections-customer-select">Müşteri Seç (Opsiyonel)</label>
+                            <select id="collections-customer-select" class="form-control">
+                                <option value="">Tüm Müşteriler</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="collections-period">Dönem</label>
+                            <select id="collections-period" class="form-control">
+                                <option value="">Tüm Dönem</option>
+                                <option value="this-month">Bu Ay</option>
+                                <option value="last-month">Geçen Ay</option>
+                                <option value="this-year">Bu Yıl</option>
+                                <option value="last-year">Geçen Yıl</option>
+                                <option value="custom">Özel Dönem</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row" id="collections-custom-dates" style="display: none;">
+                        <div class="form-group">
+                            <label for="collections-from">Başlangıç Tarihi</label>
+                            <input type="date" id="collections-from" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="collections-to">Bitiş Tarihi</label>
+                            <input type="date" id="collections-to" class="form-control">
+                        </div>
+                    </div>
+                    <div class="export-buttons">
+                        <button type="submit" class="btn btn-primary">Rapor Oluştur</button>
+                        <button type="button" class="btn btn-success" onclick="exportCollectionsExcel()">Excel İndir</button>
+                    </div>
+                </form>
+
+                <div id="collections-summary-results"></div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -570,7 +619,7 @@
 
         // Müşteri dropdown'larını doldur
         function populateCustomerSelects() {
-            const selects = ['cs-customer-select', 'cd-customer-select'];
+            const selects = ['cs-customer-select', 'cd-customer-select', 'collections-customer-select'];
             
             selects.forEach(selectId => {
                 const select = document.getElementById(selectId);
@@ -624,6 +673,16 @@
             } else {
                 customDates.style.display = 'none';
                 setDateRange(this.value, 'cd');
+            }
+        });
+
+        document.getElementById('collections-period').addEventListener('change', function() {
+            const customDates = document.getElementById('collections-custom-dates');
+            if (this.value === 'custom') {
+                customDates.style.display = 'grid';
+            } else {
+                customDates.style.display = 'none';
+                setDateRange(this.value, 'collections');
             }
         });
 
@@ -993,6 +1052,205 @@
             pageInput.value = page;
             form.appendChild(pageInput);
             form.dispatchEvent(new Event('submit'));
+        }
+
+        // Collections Summary Form
+        document.getElementById('collections-summary-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const resultsDiv = document.getElementById('collections-summary-results');
+            resultsDiv.innerHTML = '<div class="loading">Tahsilat özeti oluşturuluyor...</div>';
+
+            const params = new URLSearchParams();
+            if (document.getElementById('collections-customer-select').value) {
+                params.append('customerCode', document.getElementById('collections-customer-select').value);
+            }
+            if (document.getElementById('collections-from').value) {
+                params.append('from', document.getElementById('collections-from').value);
+            }
+            if (document.getElementById('collections-to').value) {
+                params.append('to', document.getElementById('collections-to').value);
+            }
+
+            try {
+                const response = await fetch(`/reports/collections-summary?${params}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayCollectionsSummary(data);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Bağlantı hatası: ${error.message}</div>`;
+            }
+        });
+
+        function displayCollectionsSummary(data) {
+            const resultsDiv = document.getElementById('collections-summary-results');
+            
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Tahsilat Özeti</h3>
+                        <p>Dönem: ${data.period.from || 'Tümü'} - ${data.period.to || 'Tümü'}</p>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">${data.summary.totalReceivables}</div>
+                            <div class="stat-label">Toplam Alacak</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.summary.totalCollections}</div>
+                            <div class="stat-label">Toplam Tahsilat</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">%${data.summary.collectionRate}</div>
+                            <div class="stat-label">Tahsilat Oranı</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.summary.overdueAmount}</div>
+                            <div class="stat-label">Gecikmiş Tutar</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Beklenen Tahsilatlar (Vade Tarihine Göre)</h3>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">${data.expectedCollections.days0to30}</div>
+                            <div class="stat-label">0-30 Gün</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.expectedCollections.days31to60}</div>
+                            <div class="stat-label">31-60 Gün</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.expectedCollections.days60plus}</div>
+                            <div class="stat-label">60+ Gün</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.expectedCollections.total}</div>
+                            <div class="stat-label">Toplam</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Aylık Tahsilat Hacmi (Son 12 Ay)</h3>
+                    </div>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Ay</th>
+                                    <th>Tahsilat Tutarı</th>
+                                    <th>İşlem Sayısı</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            data.monthlyCollections.forEach(month => {
+                html += `
+                    <tr>
+                        <td>${month.monthName}</td>
+                        <td><strong>${month.amount}</strong></td>
+                        <td>${month.count}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Gecikmiş İşlemler Özeti</h3>
+                        <p>Toplam ${data.overdueAnalysis.summary.transactionCount} gecikmiş işlem, ${data.overdueAnalysis.summary.customerCount} müşteri</p>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">${data.overdueAnalysis.summary.totalAmount}</div>
+                            <div class="stat-label">Toplam Gecikmiş</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.overdueAnalysis.summary.transactionCount}</div>
+                            <div class="stat-label">Gecikmiş İşlem</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.overdueAnalysis.summary.customerCount}</div>
+                            <div class="stat-label">Etkilenen Müşteri</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.overdueAnalysis.summary.averageDaysOverdue}</div>
+                            <div class="stat-label">Ortalama Gecikme (Gün)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Gecikmiş Müşteriler (İlk 10)</h3>
+                    </div>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Müşteri Kodu</th>
+                                    <th>Müşteri Adı</th>
+                                    <th>Toplam Gecikmiş</th>
+                                    <th>İşlem Sayısı</th>
+                                    <th>En Eski Gecikme</th>
+                                    <th>Gecikme Günü</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            data.overdueAnalysis.byCustomer.slice(0, 10).forEach(customer => {
+                html += `
+                    <tr>
+                        <td><strong>${customer.customerCode}</strong></td>
+                        <td>${customer.customerName}</td>
+                        <td><strong>${customer.totalAmount}</strong></td>
+                        <td>${customer.transactionCount}</td>
+                        <td>${customer.oldestOverdue ? new Date(customer.oldestOverdue).toLocaleDateString('tr-TR') : '-'}</td>
+                        <td>${customer.daysOldestOverdue} gün</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+
+        function exportCollectionsExcel() {
+            const params = new URLSearchParams();
+            if (document.getElementById('collections-customer-select').value) {
+                params.append('customerCode', document.getElementById('collections-customer-select').value);
+            }
+            if (document.getElementById('collections-from').value) {
+                params.append('from', document.getElementById('collections-from').value);
+            }
+            if (document.getElementById('collections-to').value) {
+                params.append('to', document.getElementById('collections-to').value);
+            }
+            params.append('format', 'excel');
+
+            window.open(`/reports/collections-summary?${params}`, '_blank');
         }
     </script>
 </body>

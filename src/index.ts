@@ -64,6 +64,15 @@ app.use('/imports', importsRouter);
 app.use('/transactions', transactionsRouter);
 app.use('/reports', reportsRouter);
 
+// Ana sayfa - Modern UI
+app.get('/', (_req: Request, res: Response) => {
+  res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+});
+
+app.get('/index.html', (_req: Request, res: Response) => {
+  res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+});
+
 // Basit UI
 app.use('/ui', (_req: Request, res: Response) => {
   res.sendFile(path.join(process.cwd(), 'public', 'ui.html'));
@@ -74,8 +83,25 @@ app.get('/reports-ui', (_req: Request, res: Response) => {
   res.sendFile(path.join(process.cwd(), 'public', 'reports.html'));
 });
 
+app.get('/reports.html', (_req: Request, res: Response) => {
+  res.sendFile(path.join(process.cwd(), 'public', 'reports.html'));
+});
+
 app.get('/advanced-reports', (_req: Request, res: Response) => {
   res.sendFile(path.join(process.cwd(), 'public', 'advanced-reports.html'));
+});
+
+app.get('/advanced-reports.html', (_req: Request, res: Response) => {
+  res.sendFile(path.join(process.cwd(), 'public', 'advanced-reports.html'));
+});
+
+// Static dosyalar için
+app.use('/modern-styles.css', (_req: Request, res: Response) => {
+  res.sendFile(path.join(process.cwd(), 'public', 'modern-styles.css'));
+});
+
+app.use('/modern-utils.js', (_req: Request, res: Response) => {
+  res.sendFile(path.join(process.cwd(), 'public', 'modern-utils.js'));
 });
 
 app.get('/customers/:code/balances', async (req: Request, res: Response) => {
